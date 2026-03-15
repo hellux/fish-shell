@@ -1220,10 +1220,9 @@ mod tests {
         let tmp_dir = fish_tempfile::new_dir().unwrap();
         let tmp_dir = tmp_dir.path();
         let tmp_bin = tmp_dir.join("my_cmd");
-        std::fs::File::create(&tmp_bin).unwrap();
-        std::fs::set_permissions(
-            &tmp_bin,
-            std::os::unix::fs::PermissionsExt::from_mode(0o777),
+        nix::sys::stat::fchmod(
+            std::fs::File::create(&tmp_bin).unwrap(),
+            nix::sys::stat::Mode::all(),
         )
         .unwrap();
         let tmp_dir = tmp_dir.to_string_lossy();
