@@ -201,11 +201,11 @@ echo $status
 for val in one two three four
     switch $val
     case one
-        /bin/sh -c 'exit 1'
+        command sh -c 'exit 1'
     case two
-        /bin/sh -c 'exit 2'
+        command sh -c 'exit 2'
     case three
-        /bin/sh -c 'exit 3'
+        command sh -c 'exit 3'
     end
     echo $status
 end
@@ -633,7 +633,7 @@ echo (printf '\ufdd2foo') | string escape
 echo (printf '\ufdd8foo') | string escape
 # CHECK: \Xef\Xb7\X98foo
 
-printf '%s\n' "#!/bin/sh" 'echo $0' > $tmpdir/argv0.sh
+printf '%s\n' "#!$(command -v sh)" 'echo $0' > $tmpdir/argv0.sh
 chmod +x $tmpdir/argv0.sh
 cd $tmpdir
 ./argv0.sh
