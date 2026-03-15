@@ -1361,7 +1361,7 @@ mod tests {
                     nospace: false,
                 }
             };
-            ( ( $text:literal, $color:expr, ns ) ) => {
+            ( ( $text:expr, $color:expr, ns ) ) => {
                 HighlightComponent {
                     text: $text,
                     color: $color,
@@ -1426,14 +1426,27 @@ mod tests {
 
         let fg = HighlightSpec::with_fg;
 
-        // Verify variables and wildcards in commands using /bin/cat.
+        // Verify variables and wildcards in commands using tmp executable file.
+        let tmp_dir = fish_tempfile::new_dir().unwrap();
+        let tmp_dir = tmp_dir.path();
+        let tmp_bin = tmp_dir.join("my_cmd");
+        std::fs::File::create(&tmp_bin).unwrap();
+        std::fs::set_permissions(
+            &tmp_bin,
+            std::os::unix::fs::PermissionsExt::from_mode(0o777),
+        )
+        .unwrap();
+        let tmp_prefix0 = format!("{}/my_c", tmp_dir.display());
+        let tmp_prefix1 = format!("{}/my_cm", tmp_dir.display());
+        let tmp_bin = tmp_bin.to_string_lossy();
+
         let vars = parser.vars();
         let local_mode = EnvSetMode::new_at_early_startup(EnvMode::LOCAL);
         vars.set_one(L!("CDPATH"), local_mode, L!("./cdpath-entry").to_owned());
 
-        // NOTE n, nv are suffix of /usr/bin/env
-        vars.set_one(L!("VARIABLE_IN_COMMAND"), local_mode, L!("n").to_owned());
-        vars.set_one(L!("VARIABLE_IN_COMMAND2"), local_mode, L!("nv").to_owned());
+        // NOTE i, in are parts of "my_cmd"
+        vars.set_one(L!("VARIABLE_IN_COMMAND"), local_mode, L!("m").to_owned());
+        vars.set_one(L!("VARIABLE_IN_COMMAND2"), local_mode, L!("md").to_owned());
 
         let _cleanup = ScopeGuard::new((), |_| {
             vars.remove(L!("VARIABLE_IN_COMMAND"), EnvSetMode::default());
@@ -1556,7 +1569,7 @@ mod tests {
             ("param1", fg(HighlightRole::param)),
             // Input redirection.
             ("<", fg(HighlightRole::redirection)),
-            ("/dev/null", redirection_valid_path),
+            (&tmp_bin, redirection_valid_path),
             // Output redirection to a valid fd.
             ("1>&2", fg(HighlightRole::redirection)),
             // Output redirection to an invalid fd.
@@ -1677,7 +1690,7 @@ mod tests {
 
         validate!(
             ("cat", fg(HighlightRole::command)),
-            ("/dev/null", param_valid_path),
+            (&tmp_bin, param_valid_path),
             ("|", fg(HighlightRole::statement_terminator)),
             // This is bogus, but we used to use "less" here and that doesn't have to be installed.
             ("cat", fg(HighlightRole::command)),
@@ -1687,8 +1700,8 @@ mod tests {
         // Highlight path-prefixes only at the cursor.
         validate!(
             ("cat", fg(HighlightRole::command)),
-            ("/dev/nu", fg(HighlightRole::param)),
-            ("/dev/nu", param_valid_path),
+            (&tmp_prefix0, fg(HighlightRole::param)),
+            (&tmp_prefix0, param_valid_path),
         );
 
         validate!(
@@ -1774,25 +1787,24 @@ mod tests {
             ("VERSION", fg(HighlightRole::operat), ns),
         );
 
-        // NOTE: we assume /usr/bin/env exists on the system here
         validate!(
-            ("/usr/bin/en", fg(HighlightRole::command), ns),
+            (&tmp_prefix1, fg(HighlightRole::command), ns),
             ("*", fg(HighlightRole::operat), ns)
         );
 
         validate!(
-            ("/usr/bin/e", fg(HighlightRole::command), ns),
+            (&tmp_prefix0, fg(HighlightRole::command), ns),
             ("*", fg(HighlightRole::operat), ns)
         );
 
         validate!(
-            ("/usr/bin/e", fg(HighlightRole::command), ns),
+            (&tmp_prefix0, fg(HighlightRole::command), ns),
             ("{$VARIABLE_IN_COMMAND}", fg(HighlightRole::operat), ns),
             ("*", fg(HighlightRole::operat), ns)
         );
 
         validate!(
-            ("/usr/bin/e", fg(HighlightRole::command), ns),
+            (&tmp_prefix0, fg(HighlightRole::command), ns),
             ("$VARIABLE_IN_COMMAND2", fg(HighlightRole::operat), ns)
         );
 
