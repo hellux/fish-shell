@@ -1217,19 +1217,30 @@ mod tests {
         assert!(run_test_test(1, &["(", "0", "=", "0", "-o", "0", "=", "1", ")", "-a", "0", "=", "2"]));
         assert!(run_test_test(0, &["0", "=", "0", "-o", "(", "0", "=", "1", "-a", "0", "=", "2", ")"]));
 
+        let tmp_dir = fish_tempfile::new_dir().unwrap();
+        let tmp_dir = tmp_dir.path();
+        let tmp_bin = tmp_dir.join("my_cmd");
+        std::fs::File::create(&tmp_bin).unwrap();
+        std::fs::set_permissions(
+            &tmp_bin,
+            std::os::unix::fs::PermissionsExt::from_mode(0o777),
+        )
+        .unwrap();
+        let tmp_dir = tmp_dir.to_string_lossy();
+        let tmp_bin = tmp_bin.to_string_lossy();
+
         // A few lame tests for permissions; these need to be a lot more complete.
-        // NOTE: we assume /bin/sh exists and is executable here
-        assert!(run_test_test(0, &["-e", "/bin/sh"]));
+        assert!(run_test_test(0, &["-e", &tmp_bin]));
         assert!(run_test_test(1, &["-e", "/bin/sh_not_a_path"]));
-        assert!(run_test_test(0, &["-x", "/bin/sh"]));
+        assert!(run_test_test(0, &["-x", &tmp_bin]));
         assert!(run_test_test(1, &["-x", "/bin/sh_not_a_path"]));
-        assert!(run_test_test(0, &["-d", "/bin/"]));
-        assert!(run_test_test(1, &["-d", "/bin/sh"]));
+        assert!(run_test_test(0, &["-d", &tmp_dir]));
+        assert!(run_test_test(1, &["-d", &tmp_bin]));
 
         // This failed at one point.
-        assert!(run_test_test(1, &["-d", "/bin", "-a", "5", "-eq", "3"]));
-        assert!(run_test_test(0, &["-d", "/bin", "-o", "5", "-eq", "3"]));
-        assert!(run_test_test(0,&["-d", "/bin", "-a", "!", "5", "-eq", "3"]));
+        assert!(run_test_test(1, &["-d", &tmp_dir, "-a", "5", "-eq", "3"]));
+        assert!(run_test_test(0, &["-d", &tmp_dir, "-o", "5", "-eq", "3"]));
+        assert!(run_test_test(0,&["-d", &tmp_dir, "-a", "!", "5", "-eq", "3"]));
 
         // We didn't properly handle multiple "just strings" either.
         assert!(run_test_test(0, &["foo"]));
